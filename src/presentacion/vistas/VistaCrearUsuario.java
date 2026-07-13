@@ -44,6 +44,7 @@ public class VistaCrearUsuario extends JFrame {
         lblCerrar.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
+                new VistaMenuPrincipal().mostrar();
                 dispose();
             }
             @Override
@@ -104,7 +105,10 @@ public class VistaCrearUsuario extends JFrame {
         btnCancelar.setBackground(Color.GRAY);
         btnCancelar.setForeground(Color.WHITE);
         btnCancelar.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btnCancelar.addActionListener(e -> dispose());
+        btnCancelar.addActionListener(e -> {
+            new VistaMenuPrincipal().mostrar();
+            dispose();
+        });
 
         pnlBotones.add(btnGuardar);
         pnlBotones.add(btnCancelar);
@@ -133,6 +137,7 @@ public class VistaCrearUsuario extends JFrame {
             RegistrarUsuario registrarUsuarioCaso = new RegistrarUsuario(new RepositorioUsuarioMySQL());
             registrarUsuarioCaso.ejecutar(nuevoUsuario);
             JOptionPane.showMessageDialog(this, "Usuario creado exitosamente.", "Éxito", JOptionPane.INFORMATION_MESSAGE);
+            new VistaMenuPrincipal().mostrar();
             dispose();
         } catch (IllegalStateException e) {
             JOptionPane.showMessageDialog(this, e.getMessage(), "Campos incompletos", JOptionPane.WARNING_MESSAGE);

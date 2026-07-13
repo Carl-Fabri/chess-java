@@ -41,6 +41,7 @@ public class VistaEditarPerfil extends JFrame {
         lblCerrar.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
+                new VistaMenuPrincipal().mostrar();
                 dispose();
             }
             @Override
@@ -131,6 +132,7 @@ public class VistaEditarPerfil extends JFrame {
         usuario.setApellido(txtApellido.getText().trim());
         usuario.setPassword(new String(txtPassword.getPassword()));
         JOptionPane.showMessageDialog(this, "Perfil actualizado correctamente.", "Éxito", JOptionPane.INFORMATION_MESSAGE);
+        new VistaMenuPrincipal().mostrar();
         dispose();
     }
 
