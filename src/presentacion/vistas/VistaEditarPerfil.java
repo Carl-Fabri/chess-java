@@ -1,6 +1,8 @@
 package presentacion.vistas;
 
 import dominio.modelos.Usuario;
+import dominio.puertos.RepositorioUsuario;
+import infraestructura.persistencia.RepositorioUsuarioMySQL;
 import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
@@ -131,6 +133,10 @@ public class VistaEditarPerfil extends JFrame {
         usuario.setNombre(txtNombre.getText().trim());
         usuario.setApellido(txtApellido.getText().trim());
         usuario.setPassword(new String(txtPassword.getPassword()));
+        
+        RepositorioUsuario repo = new RepositorioUsuarioMySQL();
+        repo.actualizar(usuario);
+        
         JOptionPane.showMessageDialog(this, "Perfil actualizado correctamente.", "Éxito", JOptionPane.INFORMATION_MESSAGE);
         new VistaMenuPrincipal().mostrar();
         dispose();

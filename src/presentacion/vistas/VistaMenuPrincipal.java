@@ -6,6 +6,9 @@ import javax.swing.*;
 import javax.swing.border.LineBorder;
 
 import aplicacion.Sesion;
+import dominio.modelos.Usuario;
+import infraestructura.persistencia.ServicioPartidaOnline;
+import infraestructura.persistencia.RepositorioUsuarioMySQL;
 import shared.utils.ImageUtil;
 
 public class VistaMenuPrincipal extends JFrame {
@@ -14,12 +17,16 @@ public class VistaMenuPrincipal extends JFrame {
     private JLabel jLabel_logo;
     private JLabel jLabel_titulo;
 
+    private Timer timerActividad;
+
     public VistaMenuPrincipal() {
         initComponents();
         
         String rutaLogo = "assets/images/img_logo.png";
         jLabel_logo.setSize(200, 100); 
         ImageUtil.escalarImg(jLabel_logo, rutaLogo);
+        
+        iniciarTimerActividad();
     }
 
     private void initComponents() {
@@ -75,6 +82,17 @@ public class VistaMenuPrincipal extends JFrame {
         }), gbc);
         
         gbc.insets = new Insets(15, 0, 15, 0);
+        pnlCentro.add(crearBoton("JUGAR ONLINE", false, e -> {
+            if (timerActividad != null) timerActividad.stop();
+            new DialogJugadoresActivos(this, (gameId, oponente, esCreador) -> {
+                new VistaJuego(gameId, oponente, esCreador).mostrar();
+                dispose();
+            }).setVisible(true);
+            if (timerActividad != null && this.isVisible()) {
+                timerActividad.start();
+            }
+        }), gbc);
+        
         pnlCentro.add(crearBoton("MI PERFIL", false, e -> {
             new VistaEditarPerfil(Sesion.usuario()).mostrar();
             dispose();
@@ -90,7 +108,10 @@ public class VistaMenuPrincipal extends JFrame {
                 dispose();
             }), gbc);
         }
-        pnlCentro.add(crearBoton("CERRAR SESIÓN", false, e -> System.out.println("Ranking")), gbc);
+        pnlCentro.add(crearBoton("CERRAR SESIÓN", false, e -> {
+            new VistaLogin().mostrar();
+            dispose();
+        }), gbc);
 
         jPanel_fondo.add(pnlCentro, BorderLayout.CENTER);
 
@@ -149,6 +170,52 @@ public class VistaMenuPrincipal extends JFrame {
 
         panel.add(label, BorderLayout.CENTER);
         return panel;
+    }
+
+    private void iniciarTimerActividad() {
+        if (Sesion.usuario() == null) return;
+        
+        ServicioPartidaOnline.actualizarAcceso(Sesion.usuario().getNombreUsuario());
+        
+        timerActividad = new Timer(3000, e -> {
+            if (Sesion.usuario() == null) return;
+            ServicioPartidaOnline.actualizarAcceso(Sesion.usuario().getNombreUsuario());
+            
+            java.util.List<String[]> invs = ServicioPartidaOnline.buscarInvitacionesRecibidas(Sesion.usuario().getNombreUsuario());
+            if (!invs.isEmpty()) {
+                timerActividad.stop();
+                String[] inv = invs.get(0);
+                String idPartida = inv[0];
+                String retador = inv[1];
+                
+                int rpta = JOptionPane.showConfirmDialog(
+                    this,
+                    "El jugador '" + retador + "' te invita a jugar online. ¿Aceptas?",
+                    "Invitación Online Recibida",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.QUESTION_MESSAGE
+                );
+                
+                if (rpta == JOptionPane.YES_OPTION) {
+                    ServicioPartidaOnline.responderInvitacion(idPartida, true);
+                    Usuario retadorUsuario = new RepositorioUsuarioMySQL().buscarPorNombreUsuario(retador);
+                    new VistaJuego(idPartida, retadorUsuario, false).mostrar();
+                    dispose();
+                } else {
+                    ServicioPartidaOnline.responderInvitacion(idPartida, false);
+                    timerActividad.start();
+                }
+            }
+        });
+        timerActividad.start();
+    }
+
+    @Override
+    public void dispose() {
+        if (timerActividad != null) {
+            timerActividad.stop();
+        }
+        super.dispose();
     }
 
     public void mostrar() {

@@ -118,15 +118,54 @@ public class Tablero {
                             Math.abs(p.getPosicion().getColumna() - pos.getColumna()) <= 1) {
                             return true;
                         }
-                    } else {
-                        if (p.esMovimientoValido(pos, this)) {
+                    } else if (p instanceof Caballo) {
+                        int diffFila = Math.abs(p.getPosicion().getFila() - pos.getFila());
+                        int diffCol = Math.abs(p.getPosicion().getColumna() - pos.getColumna());
+                        if ((diffFila == 2 && diffCol == 1) || (diffFila == 1 && diffCol == 2)) {
                             return true;
+                        }
+                    } else if (p instanceof Alfil) {
+                        if (Math.abs(p.getPosicion().getFila() - pos.getFila()) == Math.abs(p.getPosicion().getColumna() - pos.getColumna())) {
+                            if (esCaminoLibre(p.getPosicion(), pos)) {
+                                return true;
+                            }
+                        }
+                    } else if (p instanceof Torre) {
+                        if (p.getPosicion().getFila() == pos.getFila() || p.getPosicion().getColumna() == pos.getColumna()) {
+                            if (esCaminoLibre(p.getPosicion(), pos)) {
+                                return true;
+                            }
+                        }
+                    } else if (p instanceof Reina) {
+                        boolean esDiagonal = Math.abs(p.getPosicion().getFila() - pos.getFila()) == Math.abs(p.getPosicion().getColumna() - pos.getColumna());
+                        boolean esOrtogonal = p.getPosicion().getFila() == pos.getFila() || p.getPosicion().getColumna() == pos.getColumna();
+                        if (esDiagonal || esOrtogonal) {
+                            if (esCaminoLibre(p.getPosicion(), pos)) {
+                                return true;
+                            }
                         }
                     }
                 }
             }
         }
         return false;
+    }
+
+    private boolean esCaminoLibre(Posicion origen, Posicion destino) {
+        int stepFila = Integer.compare(destino.getFila(), origen.getFila());
+        int stepCol = Integer.compare(destino.getColumna(), origen.getColumna());
+        
+        int currFila = origen.getFila() + stepFila;
+        int currCol = origen.getColumna() + stepCol;
+        
+        while (currFila != destino.getFila() || currCol != destino.getColumna()) {
+            if (tablero[currFila][currCol] != null) {
+                return false;
+            }
+            currFila += stepFila;
+            currCol += stepCol;
+        }
+        return true;
     }
 
     public boolean estaEnJaque(Color colorRey) {

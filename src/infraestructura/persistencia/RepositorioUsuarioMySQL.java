@@ -52,6 +52,36 @@ public class RepositorioUsuarioMySQL implements RepositorioUsuario {
     }
 
     @Override
+    public void actualizar(Usuario usuario) {
+        String sql = "UPDATE usuario SET nombre = ?, apellido = ?, password = ?, partidasGanadas = ?, partidasPerdidas = ?, partidasEmpatadas = ?, esAdmin = ? WHERE nombreUsuario = ?";
+        try {
+            Connection conn = DB.getInstancia().getConexion();
+            PreparedStatement stmt = conn.prepareStatement(sql);
+            stmt.setString(1, usuario.getNombre());
+            stmt.setString(2, usuario.getApellido());
+            
+            String pwd = usuario.getPassword();
+            if (pwd == null) {
+                pwd = "";
+            }
+            if (pwd.length() != 64 || !pwd.matches("^[a-fA-F0-9]+$")) {
+                pwd = Usuario.hashearPassword(pwd);
+                usuario.setPassword(pwd);
+            }
+            stmt.setString(3, pwd);
+            
+            stmt.setInt(4, usuario.getPartidasGanadas());
+            stmt.setInt(5, usuario.getPartidasPerdidas());
+            stmt.setInt(6, usuario.getPartidasEmpatadas());
+            stmt.setBoolean(7, usuario.getEsAdmin());
+            stmt.setString(8, usuario.getNombreUsuario());
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
     public List<Usuario> obtenerUsuarios() {
         List<Usuario> usuarios = new ArrayList<>();
         String sql = "SELECT * FROM usuario";
