@@ -15,6 +15,7 @@ import aplicacion.casosuso.GestionarJuego;
 import dominio.puertos.RepositorioUsuario;
 import infraestructura.persistencia.RepositorioUsuarioMySQL;
 import infraestructura.persistencia.ServicioPartidaOnline;
+import java.util.ArrayList;
 
 public class VistaJuego extends JFrame {
 
@@ -26,8 +27,8 @@ public class VistaJuego extends JFrame {
     
     private IGestionarJuego gestionarJuego;
     private Posicion seleccionOrigen;
-    private DefaultListModel<String> modeloListaMovimientos;
-    private JList<String> listMovimientos;
+    private javax.swing.table.DefaultTableModel modeloTablaMovimientos;
+    private JTable tablaMovimientos;
     
     private boolean esOnline;
     private String idPartidaOnline;
@@ -48,6 +49,7 @@ public class VistaJuego extends JFrame {
         inicializarTablero();
         actualizarTablero();
         actualizarTurno();
+        actualizarNombresJugadores();
     }
 
     public VistaJuego(String idPartida, Usuario oponente, boolean esCreador) {
@@ -65,6 +67,7 @@ public class VistaJuego extends JFrame {
         inicializarTablero();
         actualizarTablero();
         actualizarTurno();
+        actualizarNombresJugadores();
         
         iniciarSincronizacionOnline();
     }
@@ -134,10 +137,22 @@ public class VistaJuego extends JFrame {
         JPanel pnlExtra = new JPanel(new BorderLayout());
         pnlExtra.setBackground(Color.WHITE);
         pnlExtra.setBorder(BorderFactory.createTitledBorder("Historial de Movimientos"));
-        modeloListaMovimientos = new DefaultListModel<>();
-        listMovimientos = new JList<>(modeloListaMovimientos);
-        listMovimientos.setFont(new Font("Roboto", Font.PLAIN, 16));
-        JScrollPane scrollMovimientos = new JScrollPane(listMovimientos);
+        
+        modeloTablaMovimientos = new javax.swing.table.DefaultTableModel(new String[]{"Nº", "Blancas", "Negras"}, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+        tablaMovimientos = new JTable(modeloTablaMovimientos);
+        tablaMovimientos.setFont(new Font("Roboto", Font.PLAIN, 12));
+        tablaMovimientos.setRowHeight(20);
+        tablaMovimientos.getColumnModel().getColumn(0).setPreferredWidth(35);
+        tablaMovimientos.getColumnModel().getColumn(1).setPreferredWidth(160);
+        tablaMovimientos.getColumnModel().getColumn(2).setPreferredWidth(160);
+        
+        JScrollPane scrollMovimientos = new JScrollPane(tablaMovimientos);
+        scrollMovimientos.getViewport().setBackground(Color.WHITE);
         pnlExtra.add(scrollMovimientos, BorderLayout.CENTER);
         pnlInfo.add(pnlExtra, BorderLayout.CENTER);
 
@@ -444,15 +459,78 @@ public class VistaJuego extends JFrame {
         super.dispose();
     }
 
-    private void actualizarHistorialMovimientos() {
-        if (modeloListaMovimientos == null) return;
-        modeloListaMovimientos.clear();
-        int numMovimiento = 1;
+    private void actualizarNombresJugadores() {
+        Usuario uBlancas = gestionarJuego.getPartidaActual().getJugadorBlancas();
+        Usuario uNegras = gestionarJuego.getPartidaActual().getJugadorNegras();
+        
+        String nombreBlancas = uBlancas != null ? uBlancas.getNombreUsuario() : "Blancas";
+        String nombreNegras = uNegras != null ? uNegras.getNombreUsuario() : "Negras";
+        
+        pnlJugador1.setBorder(BorderFactory.createTitledBorder(nombreBlancas + " (Blancas)"));
+        pnlJugador2.setBorder(BorderFactory.createTitledBorder(nombreNegras + " (Negras)"));
+        
+        for (Component c : pnlJugador1.getComponents()) {
+            if (c instanceof JLabel && !"IMG".equals(((JLabel) c).getText())) {
+                ((JLabel) c).setText(nombreBlancas);
+            }
+        }
+        for (Component c : pnlJugador2.getComponents()) {
+            if (c instanceof JLabel && !"IMG".equals(((JLabel) c).getText())) {
+                ((JLabel) c).setText(nombreNegras);
+            }
+        }
+    }
+
+    private String traducirTipoPieza(dominio.enums.TipoPieza tipo) {
+        switch (tipo) {
+            case PEON: return "Peón";
+            case TORRE: return "Torre";
+            case CABALLO: return "Caballo";
+            case ALFIL: return "Alfil";
+            case REINA: return "Reina";
+            case REY: return "Rey";
+            default: return tipo.toString();
+        }
+    }
+
+    private java.util.List<String> obtenerMovimientosFormateados() {
+        java.util.List<String> formateados = new ArrayList<>();
+        Tablero tableroSim = new Tablero();
         java.util.List<String> movs = gestionarJuego.getPartidaActual().getMovimientos();
-        for (int i = 0; i < movs.size(); i += 2) {
-            String jugadaBlanco = movs.get(i);
-            String jugadaNegro = (i + 1 < movs.size()) ? movs.get(i + 1) : "";
-            modeloListaMovimientos.addElement(numMovimiento + ". " + jugadaBlanco + "   " + jugadaNegro);
+        
+        for (String m : movs) {
+            if (m.contains("-")) {
+                String[] parts = m.split("-");
+                Posicion origen = new Posicion(parts[0]);
+                Posicion destino = new Posicion(parts[1]);
+                
+                Pieza p = tableroSim.getPieza(origen);
+                String desc = "?";
+                if (p != null) {
+                    String tipoPiezaStr = traducirTipoPieza(p.getTipo());
+                    String colorStr = p.getColor() == dominio.enums.Color.BLANCO ? "Blanco" : "Negro";
+                    desc = tipoPiezaStr + " (" + colorStr + "): " + m;
+                } else {
+                    desc = m;
+                }
+                formateados.add(desc);
+                
+                tableroSim.ejecutarMovimiento(origen, destino);
+            }
+        }
+        return formateados;
+    }
+
+    private void actualizarHistorialMovimientos() {
+        if (modeloTablaMovimientos == null) return;
+        modeloTablaMovimientos.setRowCount(0);
+        
+        java.util.List<String> formateados = obtenerMovimientosFormateados();
+        int numMovimiento = 1;
+        for (int i = 0; i < formateados.size(); i += 2) {
+            String jugadaBlanco = formateados.get(i);
+            String jugadaNegro = (i + 1 < formateados.size()) ? formateados.get(i + 1) : "";
+            modeloTablaMovimientos.addRow(new Object[]{numMovimiento, jugadaBlanco, jugadaNegro});
             numMovimiento++;
         }
     }
