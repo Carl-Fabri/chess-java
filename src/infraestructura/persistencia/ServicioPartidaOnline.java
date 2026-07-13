@@ -34,7 +34,7 @@ public class ServicioPartidaOnline {
     public static List<Usuario> obtenerUsuariosActivos(String nombreUsuarioExcluir) {
         List<Usuario> activos = new ArrayList<>();
         // Consider active if updated in the last 15 seconds
-        String sql = "SELECT * FROM usuario WHERE ultimo_acceso >= DATE_SUB(NOW(), INTERVAL 15 SECOND) AND nombreUsuario != ?";
+        String sql = "SELECT * FROM usuario WHERE ultimo_acceso >= DATE_SUB(NOW(), INTERVAL 30 SECOND) AND nombreUsuario != ?";
         try {
             Connection conn = DB.getInstancia().getConexion();
             try (PreparedStatement stmt = conn.prepareStatement(sql)) {
