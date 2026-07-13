@@ -7,9 +7,9 @@ import java.sql.SQLException;
 public class DB {
     private static DB instancia;
     private Connection conexion;
-    private static final String URL = "jdbc:mysql://localhost:3306/chess_game?allowPublicKeyRetrieval=true&useSSL=false";
-    private static final String USUARIO = "root";
-    private static final String PASSWORD = "$pth6fuX%dG1M$#MJ*mr";
+    private static final String URL = "jdbc:mysql://195.179.226.112:3306/chess?allowPublicKeyRetrieval=true";
+    private static final String USUARIO = "chess-user";
+    private static final String PASSWORD = "FZPp8G16C6OIDavKfvLD";
 
     private DB() {
         try {

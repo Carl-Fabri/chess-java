@@ -15,7 +15,7 @@ public class RepositorioUsuarioMySQL implements RepositorioUsuario {
 
     @Override
     public Usuario buscarPorNombreUsuario(String nombreUsuario) {
-        String sql = "SELECT * FROM chess_game.usuario WHERE nombreUsuario = ?";
+        String sql = "SELECT * FROM usuario WHERE nombreUsuario = ?";
         try {
             Connection conn = DB.getInstancia().getConexion();
             PreparedStatement stmt = conn.prepareStatement(sql);
