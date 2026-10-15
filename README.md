@@ -121,7 +121,7 @@ chess-java/
 │   │       └── RegistrarUsuario.java      # Caso de uso: registro
 │   ├── dominio/
 │   │   ├── enums/                         # Color, TipoPieza, EstadoJuego, etc.
-│   │   ├── modelos/                       # Tablero, Partida, Usuario, Piezas
+│   │   ├── modelos/                       # Tablero, Partida, Usuario, Piezas, HistorialMovimientos
 │   │   └── puertos/                       # Interfaces / contratos
 │   ├── infraestructura/
 │   │   ├── mapper/                        # UsuarioMapper (ResultSet → Modelo)
@@ -138,3 +138,78 @@ chess-java/
 ├── docker-compose.yml                     # Configuración del contenedor MySQL
 └── out/                                   # Clases compiladas (generado al compilar)
 ```
+
+---
+
+## Historial de movimientos (Lista doblemente enlazada)
+
+El historial de la partida se guarda en una **lista doblemente enlazada** implementada a mano, sin usar `ArrayList` ni `LinkedList` de Java.
+
+### Clases
+
+| Clase | Ubicación | Responsabilidad |
+|---|---|---|
+| `NodoMovimiento` | `src/dominio/modelos/` | Representa **un solo movimiento** (de blancas o de negras) |
+| `HistorialMovimientos` | `src/dominio/modelos/` | La lista: mantiene la `cabeza`, la `cola` y el `tamanio` |
+
+### El nodo
+
+Cada `NodoMovimiento` guarda los datos del movimiento y dos referencias:
+
+| Atributo | Descripción |
+|---|---|
+| `origen` / `destino` | Casillas de inicio y fin (ej. `e2` → `e4`) |
+| `piezaMovida` | La pieza que se movió |
+| `piezaCapturada` | La pieza que se comió (o `null` si no hubo captura) |
+| `color` | Color del jugador que hizo el movimiento |
+| `anterior` | Referencia al nodo del movimiento previo |
+| `siguiente` | Referencia al nodo del movimiento posterior |
+
+```
+            cabeza                                        cola
+              │                                             │
+              ▼                                             ▼
+null ◄── ┌─────────┐ ◄── ┌─────────┐ ◄── ┌─────────┐
+         │ e2-e4   │     │ d7-d5   │     │ e4-d5   │
+         │ Blancas │     │ Negras  │     │ Blancas │
+         │ Peón    │     │ Peón    │     │ Peón    │
+         └─────────┘ ──► └─────────┘ ──► └─────────┘ ──► null
+```
+
+- La **cabeza** es el primer movimiento de la partida; su `anterior` es `null`.
+- La **cola** es el último movimiento; su `siguiente` es `null`.
+
+### Operaciones
+
+**`agregar(nodo)`**: se llama cada vez que un jugador hace un movimiento válido (`Partida.realizarMovimiento`).
+
+1. Si la lista está vacía, el nodo pasa a ser la `cabeza`.
+2. Si no, se enlaza al final: `cola.siguiente = nodo` y `nodo.anterior = cola`.
+3. El nodo pasa a ser la nueva `cola` y aumenta el `tamanio`.
+
+**`eliminarUltimo()`**: se usa al **regresar un movimiento**.
+
+1. Se toma la `cola` actual.
+2. La nueva `cola` es `cola.anterior`. Gracias al enlace hacia atrás, esto se hace en un paso, sin recorrer la lista.
+3. Si la nueva cola es `null`, la lista queda vacía (`cabeza = null`). Si no, se corta su enlace: `cola.siguiente = null`.
+4. Disminuye el `tamanio` y se devuelve el nodo eliminado.
+
+**Recorrido**: para mostrar el historial en pantalla, se empieza en la `cabeza` y se avanza por `siguiente` hasta llegar a `null`. Cada nodo es una fila de la tabla:
+
+| Nº | Jugador | Pieza | Movimiento |
+|---|---|---|---|
+| 1 | Blancas | Peón | e2-e4 |
+| 2 | Negras | Peón | d7-d5 |
+| 3 | Blancas | Peón | e4-d5 |
+
+### Regresar movimiento
+
+Cada jugador puede **regresar su movimiento hasta 2 veces por partida** (`Partida.MAX_RETROCESOS`).
+
+- Después de mover, aparece el botón **"Regresar movimiento (n)"** en el panel de ese jugador, donde `n` son los retrocesos que le quedan.
+- Solo se puede regresar el último movimiento propio, es decir, antes de que el rival responda (la `cola` debe ser de su color).
+- Al presionarlo:
+  1. `HistorialMovimientos.eliminarUltimo()` quita la `cola`.
+  2. `Tablero.deshacerMovimiento(nodo)` regresa la pieza a su `origen` y, si hubo captura, repone la `piezaCapturada` en el `destino`.
+  3. El turno vuelve al jugador y se descuenta uno de sus retrocesos.
+- En partidas **online**, la lista de movimientos se actualiza en la base de datos y el rival detecta que es más corta que la suya, así que deshace el movimiento en su tablero.

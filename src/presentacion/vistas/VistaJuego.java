@@ -6,6 +6,7 @@ import javax.swing.*;
 import javax.swing.border.LineBorder;
 import shared.utils.ImageUtil;
 import dominio.modelos.piezas.Pieza;
+import dominio.modelos.NodoMovimiento;
 import dominio.modelos.Posicion;
 import dominio.modelos.Tablero;
 import dominio.modelos.Usuario;
@@ -15,7 +16,6 @@ import aplicacion.casosuso.GestionarJuego;
 import dominio.puertos.RepositorioUsuario;
 import infraestructura.persistencia.RepositorioUsuarioMySQL;
 import infraestructura.persistencia.ServicioPartidaOnline;
-import java.util.ArrayList;
 
 public class VistaJuego extends JFrame {
 
@@ -29,7 +29,9 @@ public class VistaJuego extends JFrame {
     private Posicion seleccionOrigen;
     private javax.swing.table.DefaultTableModel modeloTablaMovimientos;
     private JTable tablaMovimientos;
-    
+    private JButton btnRetrocederBlancas;
+    private JButton btnRetrocederNegras;
+
     private boolean esOnline;
     private String idPartidaOnline;
     private boolean esCreador;
@@ -101,6 +103,11 @@ public class VistaJuego extends JFrame {
         pnlJugador1 = crearPanelJugador("Jugador 1 (Blancas)", "assets/images/user.png");
         pnlInfo.add(pnlJugador1);
 
+        btnRetrocederNegras = crearBotonRetroceso(dominio.enums.Color.NEGRO);
+        pnlJugador2.add(btnRetrocederNegras);
+        btnRetrocederBlancas = crearBotonRetroceso(dominio.enums.Color.BLANCO);
+        pnlJugador1.add(btnRetrocederBlancas);
+
         gbc.gridx = 1;
         gbc.weightx = 0.33;
         mainPanel.add(pnlInfo, gbc);
@@ -138,7 +145,7 @@ public class VistaJuego extends JFrame {
         pnlExtra.setBackground(Color.WHITE);
         pnlExtra.setBorder(BorderFactory.createTitledBorder("Historial de Movimientos"));
         
-        modeloTablaMovimientos = new javax.swing.table.DefaultTableModel(new String[]{"Nº", "Blancas", "Negras"}, 0) {
+        modeloTablaMovimientos = new javax.swing.table.DefaultTableModel(new String[]{"Nº", "Jugador", "Pieza", "Movimiento"}, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
@@ -148,8 +155,9 @@ public class VistaJuego extends JFrame {
         tablaMovimientos.setFont(new Font("Roboto", Font.PLAIN, 12));
         tablaMovimientos.setRowHeight(20);
         tablaMovimientos.getColumnModel().getColumn(0).setPreferredWidth(35);
-        tablaMovimientos.getColumnModel().getColumn(1).setPreferredWidth(160);
-        tablaMovimientos.getColumnModel().getColumn(2).setPreferredWidth(160);
+        tablaMovimientos.getColumnModel().getColumn(1).setPreferredWidth(90);
+        tablaMovimientos.getColumnModel().getColumn(2).setPreferredWidth(90);
+        tablaMovimientos.getColumnModel().getColumn(3).setPreferredWidth(100);
         
         JScrollPane scrollMovimientos = new JScrollPane(tablaMovimientos);
         scrollMovimientos.getViewport().setBackground(Color.WHITE);
@@ -254,6 +262,7 @@ public class VistaJuego extends JFrame {
             }
         }
         actualizarHistorialMovimientos();
+        actualizarRetrocesos();
     }
 
     private void manejarClick(Posicion pos) {
@@ -279,14 +288,7 @@ public class VistaJuego extends JFrame {
             } else {
                 if (gestionarJuego.realizarMovimiento(seleccionOrigen, pos)) {
                     if (esOnline) {
-                        java.util.List<String> movs = gestionarJuego.getPartidaActual().getMovimientos();
-                        StringBuilder sb = new StringBuilder();
-                        for (int i = 0; i < movs.size(); i++) {
-                            if (i > 0) sb.append(",");
-                            sb.append(movs.get(i));
-                        }
-                        String siguienteTurno = esCreador ? "NEGRO" : "BLANCO";
-                        ServicioPartidaOnline.realizarMovimientoOnline(idPartidaOnline, sb.toString(), siguienteTurno);
+                        sincronizarMovimientosOnline();
                     }
                     
                     seleccionOrigen = null;
@@ -301,6 +303,44 @@ public class VistaJuego extends JFrame {
                 }
             }
         }
+    }
+
+    private void sincronizarMovimientosOnline() {
+        String movs = String.join(",", gestionarJuego.getPartidaActual().getMovimientos());
+        ServicioPartidaOnline.realizarMovimientoOnline(idPartidaOnline, movs, gestionarJuego.getTurnoActual().toString());
+    }
+
+    private JButton crearBotonRetroceso(dominio.enums.Color color) {
+        JButton boton = new JButton();
+        boton.addActionListener(e -> retrocederMovimiento(color));
+        boton.setVisible(false);
+        return boton;
+    }
+
+    private void retrocederMovimiento(dominio.enums.Color color) {
+        if (!gestionarJuego.retrocederMovimiento(color)) return;
+
+        if (esOnline) {
+            sincronizarMovimientosOnline();
+        }
+        seleccionOrigen = null;
+        actualizarTablero();
+        actualizarTurno();
+    }
+
+    /**
+     * El botón solo aparece en el panel del jugador que acaba de mover (y en online, solo si es el jugador local).
+     */
+    private void actualizarRetrocesos() {
+        if (btnRetrocederBlancas == null) return;
+        actualizarBotonRetroceso(btnRetrocederBlancas, dominio.enums.Color.BLANCO);
+        actualizarBotonRetroceso(btnRetrocederNegras, dominio.enums.Color.NEGRO);
+    }
+
+    private void actualizarBotonRetroceso(JButton boton, dominio.enums.Color color) {
+        boolean esJugadorLocal = !esOnline || color == (esCreador ? dominio.enums.Color.BLANCO : dominio.enums.Color.NEGRO);
+        boton.setText("Regresar movimiento (" + gestionarJuego.getRetrocesosRestantes(color) + ")");
+        boton.setVisible(esJugadorLocal && gestionarJuego.puedeRetroceder(color));
     }
 
     private void colocarPieza(JPanel casilla, String tipo, String color) {
@@ -387,13 +427,26 @@ public class VistaJuego extends JFrame {
             }
             
             dominio.enums.Color colorLocal = esCreador ? dominio.enums.Color.BLANCO : dominio.enums.Color.NEGRO;
-            
+            dominio.enums.Color colorOponente = esCreador ? dominio.enums.Color.NEGRO : dominio.enums.Color.BLANCO;
+
+            String movsDB = partida.movimientos;
+            int movesDBSize = (movsDB == null || movsDB.trim().isEmpty()) ? 0 : movsDB.split(",").length;
+
+            // El oponente regresó su último movimiento
+            if (movesDBSize < gestionarJuego.getPartidaActual().getHistorial().getTamanio()) {
+                if (gestionarJuego.retrocederMovimiento(colorOponente)) {
+                    seleccionOrigen = null;
+                    actualizarTablero();
+                    actualizarTurno();
+                }
+                return;
+            }
+
             if (gestionarJuego.getTurnoActual() != colorLocal) {
-                String movsDB = partida.movimientos;
-                if (movsDB != null && !movsDB.trim().isEmpty()) {
+                if (movesDBSize > 0) {
                     String[] moves = movsDB.split(",");
-                    int localMovesSize = gestionarJuego.getPartidaActual().getMovimientos().size();
-                    
+                    int localMovesSize = gestionarJuego.getPartidaActual().getHistorial().getTamanio();
+
                     if (moves.length > localMovesSize) {
                         for (int i = localMovesSize; i < moves.length; i++) {
                             String nextMove = moves[i];
@@ -493,45 +546,24 @@ public class VistaJuego extends JFrame {
         }
     }
 
-    private java.util.List<String> obtenerMovimientosFormateados() {
-        java.util.List<String> formateados = new ArrayList<>();
-        Tablero tableroSim = new Tablero();
-        java.util.List<String> movs = gestionarJuego.getPartidaActual().getMovimientos();
-        
-        for (String m : movs) {
-            if (m.contains("-")) {
-                String[] parts = m.split("-");
-                Posicion origen = new Posicion(parts[0]);
-                Posicion destino = new Posicion(parts[1]);
-                
-                Pieza p = tableroSim.getPieza(origen);
-                String desc = "?";
-                if (p != null) {
-                    String tipoPiezaStr = traducirTipoPieza(p.getTipo());
-                    String colorStr = p.getColor() == dominio.enums.Color.BLANCO ? "Blanco" : "Negro";
-                    desc = tipoPiezaStr + " (" + colorStr + "): " + m;
-                } else {
-                    desc = m;
-                }
-                formateados.add(desc);
-                
-                tableroSim.ejecutarMovimiento(origen, destino);
-            }
-        }
-        return formateados;
-    }
-
     private void actualizarHistorialMovimientos() {
         if (modeloTablaMovimientos == null) return;
         modeloTablaMovimientos.setRowCount(0);
-        
-        java.util.List<String> formateados = obtenerMovimientosFormateados();
+
+        // Una fila por nodo: cada NodoMovimiento es un solo movimiento (de blancas o de negras)
+        NodoMovimiento actual = gestionarJuego.getPartidaActual().getHistorial().getCabeza();
         int numMovimiento = 1;
-        for (int i = 0; i < formateados.size(); i += 2) {
-            String jugadaBlanco = formateados.get(i);
-            String jugadaNegro = (i + 1 < formateados.size()) ? formateados.get(i + 1) : "";
-            modeloTablaMovimientos.addRow(new Object[]{numMovimiento, jugadaBlanco, jugadaNegro});
+        while (actual != null) {
+            String jugador = actual.getColor() == dominio.enums.Color.BLANCO ? "Blancas" : "Negras";
+            String pieza = traducirTipoPieza(actual.getPiezaMovida().getTipo());
+            modeloTablaMovimientos.addRow(new Object[]{numMovimiento, jugador, pieza, actual.toNotacion()});
             numMovimiento++;
+            actual = actual.getSiguiente();
+        }
+
+        int ultimaFila = modeloTablaMovimientos.getRowCount() - 1;
+        if (ultimaFila >= 0) {
+            tablaMovimientos.scrollRectToVisible(tablaMovimientos.getCellRect(ultimaFila, 0, true));
         }
     }
 }

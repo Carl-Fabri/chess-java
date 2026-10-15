@@ -50,4 +50,22 @@ public class GestionarJuego implements IGestionarJuego {
         if (partidaActual == null) return false;
         return partidaActual.getTablero().estaEnJaqueMate(color);
     }
+
+    @Override
+    public boolean puedeRetroceder(Color color) {
+        if (partidaActual == null) return false;
+        return partidaActual.puedeRetroceder(color);
+    }
+
+    @Override
+    public boolean retrocederMovimiento(Color color) {
+        if (partidaActual == null) return false;
+        return partidaActual.retrocederMovimiento(color);
+    }
+
+    @Override
+    public int getRetrocesosRestantes(Color color) {
+        if (partidaActual == null) return 0;
+        return partidaActual.getRetrocesosRestantes(color);
+    }
 }

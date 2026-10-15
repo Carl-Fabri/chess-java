@@ -88,6 +88,16 @@ public class Tablero {
         return true;
     }
 
+    public void deshacerMovimiento(NodoMovimiento movimiento) {
+        Pieza pieza = movimiento.getPiezaMovida();
+        Posicion origen = movimiento.getOrigen();
+        Posicion destino = movimiento.getDestino();
+
+        tablero[origen.getFila()][origen.getColumna()] = pieza;
+        tablero[destino.getFila()][destino.getColumna()] = movimiento.getPiezaCapturada();
+        pieza.mover(origen);
+    }
+
     public Posicion getPosicionRey(Color color) {
         for (int i = 0; i < 8; i++) {
             for (int j = 0; j < 8; j++) {

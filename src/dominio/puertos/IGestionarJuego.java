@@ -14,4 +14,7 @@ public interface IGestionarJuego {
     Partida getPartidaActual();
     boolean estaEnJaque(Color color);
     boolean estaEnJaqueMate(Color color);
+    boolean puedeRetroceder(Color color);
+    boolean retrocederMovimiento(Color color);
+    int getRetrocesosRestantes(Color color);
 }
