@@ -88,7 +88,7 @@ public class Tablero {
         return true;
     }
 
-    public void deshacerMovimiento(NodoMovimiento movimiento) {
+    public void deshacerMovimiento(Movimiento movimiento) {
         Pieza pieza = movimiento.getPiezaMovida();
         Posicion origen = movimiento.getOrigen();
         Posicion destino = movimiento.getDestino();

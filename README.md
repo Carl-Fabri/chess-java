@@ -120,8 +120,9 @@ chess-java/
 │   │       ├── IniciarSesion.java         # Caso de uso: login
 │   │       └── RegistrarUsuario.java      # Caso de uso: registro
 │   ├── dominio/
-│   │   ├── enums/                         # Color, TipoPieza, EstadoJuego, etc.
-│   │   ├── modelos/                       # Tablero, Partida, Usuario, Piezas, HistorialMovimientos
+│   │   ├── enums/                         # Color, TipoPieza, EstadoJuego, EstadoMovimiento, etc.
+│   │   ├── estructuras/                   # TADLista, ListaDoblementeEnlazada
+│   │   ├── modelos/                       # Tablero, Partida, Usuario, Piezas, Movimiento, HistorialMovimientos
 │   │   └── puertos/                       # Interfaces / contratos
 │   ├── infraestructura/
 │   │   ├── mapper/                        # UsuarioMapper (ResultSet → Modelo)
@@ -141,75 +142,57 @@ chess-java/
 
 ---
 
-## Historial de movimientos (Lista doblemente enlazada)
+## Historial de movimientos (TDA Lista doblemente enlazada)
 
-El historial de la partida se guarda en una **lista doblemente enlazada** implementada a mano, sin usar `ArrayList` ni `LinkedList` de Java.
+El historial de cada partida se guarda en un **Tipo de Dato Abstracto (TDA)** implementado a mano como **lista doblemente enlazada**, sin usar `ArrayList` ni `LinkedList` de Java.
+
+> 📄 Documentación técnica completa (especificación, invariantes, lógica de punteros, complejidad y pruebas): [docs/TDA_LISTA_DOBLEMENTE_ENLAZADA.md](docs/TDA_LISTA_DOBLEMENTE_ENLAZADA.md)
 
 ### Clases
 
 | Clase | Ubicación | Responsabilidad |
 |---|---|---|
-| `NodoMovimiento` | `src/dominio/modelos/` | Representa **un solo movimiento** (de blancas o de negras) |
-| `HistorialMovimientos` | `src/dominio/modelos/` | La lista: mantiene la `cabeza`, la `cola` y el `tamanio` |
-
-### El nodo
-
-Cada `NodoMovimiento` guarda los datos del movimiento y dos referencias:
-
-| Atributo | Descripción |
-|---|---|
-| `origen` / `destino` | Casillas de inicio y fin (ej. `e2` → `e4`) |
-| `piezaMovida` | La pieza que se movió |
-| `piezaCapturada` | La pieza que se comió (o `null` si no hubo captura) |
-| `color` | Color del jugador que hizo el movimiento |
-| `anterior` | Referencia al nodo del movimiento previo |
-| `siguiente` | Referencia al nodo del movimiento posterior |
+| `TADLista<T>` | `src/dominio/estructuras/` | Especificación del TDA: crear, consultar, editar, eliminar y recorrer |
+| `ListaDoblementeEnlazada<T>` | `src/dominio/estructuras/` | Implementación: `cabeza`, `cola`, `tamanio` y un `Nodo` **privado** con punteros `anterior`/`siguiente` |
+| `Movimiento` | `src/dominio/modelos/` | El dato: una jugada inmutable (origen, destino, pieza movida, pieza capturada, estado) |
+| `HistorialMovimientos` | `src/dominio/modelos/` | TDA del dominio sobre `TADLista<Movimiento>` |
 
 ```
             cabeza                                        cola
               │                                             │
               ▼                                             ▼
 null ◄── ┌─────────┐ ◄── ┌─────────┐ ◄── ┌─────────┐
-         │ e2-e4   │     │ d7-d5   │     │ e4-d5   │
+         │ e2-e4   │     │ d7-d5   │     │ e4xd5   │
          │ Blancas │     │ Negras  │     │ Blancas │
-         │ Peón    │     │ Peón    │     │ Peón    │
          └─────────┘ ──► └─────────┘ ──► └─────────┘ ──► null
 ```
 
-- La **cabeza** es el primer movimiento de la partida; su `anterior` es `null`.
-- La **cola** es el último movimiento; su `siguiente` es `null`.
+### Cada acción del juego es una acción de la lista
 
-### Operaciones
-
-**`agregar(nodo)`**: se llama cada vez que un jugador hace un movimiento válido (`Partida.realizarMovimiento`).
-
-1. Si la lista está vacía, el nodo pasa a ser la `cabeza`.
-2. Si no, se enlaza al final: `cola.siguiente = nodo` y `nodo.anterior = cola`.
-3. El nodo pasa a ser la nueva `cola` y aumenta el `tamanio`.
-
-**`eliminarUltimo()`**: se usa al **regresar un movimiento**.
-
-1. Se toma la `cola` actual.
-2. La nueva `cola` es `cola.anterior`. Gracias al enlace hacia atrás, esto se hace en un paso, sin recorrer la lista.
-3. Si la nueva cola es `null`, la lista queda vacía (`cabeza = null`). Si no, se corta su enlace: `cola.siguiente = null`.
-4. Disminuye el `tamanio` y se devuelve el nodo eliminado.
-
-**Recorrido**: para mostrar el historial en pantalla, se empieza en la `cabeza` y se avanza por `siguiente` hasta llegar a `null`. Cada nodo es una fila de la tabla:
-
-| Nº | Jugador | Pieza | Movimiento |
+| Acción | Método | Operación del TDA | Costo |
 |---|---|---|---|
-| 1 | Blancas | Peón | e2-e4 |
-| 2 | Negras | Peón | d7-d5 |
-| 3 | Blancas | Peón | e4-d5 |
+| Jugar | `historial.registrar(m)` | crear: `insertarAlFinal` | O(1) |
+| Anotar jaque (`+`) o mate (`#`) | `historial.marcarUltimo(estado)` | editar: `modificarUltimo` | O(1) |
+| Regresar movimiento | `historial.deshacerUltimo()` | eliminar: `eliminarUltimo` | O(1) |
+| Mostrar la tabla / sincronizar online | `for (Movimiento m : historial)` | recorrer: iterador | O(n) |
+
+La tabla muestra la notación completa (`e2-e4`, `e4xd5`, `d1-h5+`, `h5xf7#`). En MySQL se sigue guardando el formato `e2-e4,d7-d5,...` para las partidas online.
 
 ### Regresar movimiento
 
 Cada jugador puede **regresar su movimiento hasta 2 veces por partida** (`Partida.MAX_RETROCESOS`).
 
 - Después de mover, aparece el botón **"Regresar movimiento (n)"** en el panel de ese jugador, donde `n` son los retrocesos que le quedan.
-- Solo se puede regresar el último movimiento propio, es decir, antes de que el rival responda (la `cola` debe ser de su color).
+- Solo se puede regresar el último movimiento propio, antes de que el rival responda (la última jugada del historial debe ser de su color).
 - Al presionarlo:
-  1. `HistorialMovimientos.eliminarUltimo()` quita la `cola`.
-  2. `Tablero.deshacerMovimiento(nodo)` regresa la pieza a su `origen` y, si hubo captura, repone la `piezaCapturada` en el `destino`.
+  1. `HistorialMovimientos.deshacerUltimo()` quita la `cola` de la lista en O(1).
+  2. `Tablero.deshacerMovimiento(movimiento)` regresa la pieza a su `origen` y, si hubo captura, repone la `piezaCapturada` en el `destino`.
   3. El turno vuelve al jugador y se descuenta uno de sus retrocesos.
-- En partidas **online**, la lista de movimientos se actualiza en la base de datos y el rival detecta que es más corta que la suya, así que deshace el movimiento en su tablero.
+- En partidas **online**, la lista de movimientos se actualiza en la base de datos; el rival detecta que es más corta que la suya y deshace el movimiento en su tablero.
+
+### Pruebas
+
+```powershell
+javac -encoding UTF-8 -cp out -d out-test test\dominio\estructuras\PruebasListaDoblementeEnlazada.java
+java -cp "out;out-test" dominio.estructuras.PruebasListaDoblementeEnlazada
+```

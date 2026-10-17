@@ -1,11 +1,12 @@
 package dominio.modelos;
 
+import dominio.estructuras.ListaDoblementeEnlazada;
+import dominio.estructuras.TADLista;
+
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 public class Usuario {
     private String id;
@@ -13,7 +14,7 @@ public class Usuario {
     private String nombre;
     private String apellido;
     private LocalDateTime fechaRegistro;
-    private List<Partida> partidasJugadas;
+    private TADLista<Partida> partidasJugadas;
     private boolean esAdmin;
     private int partidasGanadas;
     private int partidasPerdidas;
@@ -26,14 +27,14 @@ public class Usuario {
         this.apellido = apellido;
         this.password = password;
         this.fechaRegistro = LocalDateTime.now();
-        this.partidasJugadas = new ArrayList<>();
+        this.partidasJugadas = new ListaDoblementeEnlazada<>();
         this.partidasGanadas = 0;
         this.partidasPerdidas = 0;
         this.partidasEmpatadas = 0;
     }
     
     public void agregarPartida(Partida partida) {
-        this.partidasJugadas.add(partida);
+        this.partidasJugadas.insertarAlFinal(partida);
     }
     
     public void incrementarVictorias() {
@@ -78,7 +79,7 @@ public class Usuario {
     public LocalDateTime getFechaRegistro() {
         return fechaRegistro;
     }
-    public List<Partida> getPartidasJugadas() {
+    public TADLista<Partida> getPartidasJugadas() {
         return partidasJugadas;
     }
     public int getPartidasGanadas() {

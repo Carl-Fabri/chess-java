@@ -2,6 +2,7 @@ package dominio.modelos;
 
 import dominio.enums.Color;
 import dominio.enums.EstadoJuego;
+import dominio.enums.EstadoMovimiento;
 import dominio.modelos.piezas.Pieza;
 
 import java.time.LocalDateTime;
@@ -42,9 +43,14 @@ public class Partida {
         Pieza piezaCapturada = tablero.getPieza(destino);
         if (!tablero.ejecutarMovimiento(origen, destino)) return false;
 
-        historial.agregar(new NodoMovimiento(origen, destino, piezaMovida, piezaCapturada));
+        historial.registrar(new Movimiento(origen, destino, piezaMovida, piezaCapturada));
 
         turnoActual = (turnoActual == Color.BLANCO) ? Color.NEGRO : Color.BLANCO;
+
+        // Se edita la jugada recién registrada con su efecto sobre el rival
+        if (tablero.estaEnJaque(turnoActual)) {
+            historial.marcarUltimo(tablero.estaEnJaqueMate(turnoActual) ? EstadoMovimiento.JAQUE_MATE : EstadoMovimiento.JAQUE);
+        }
 
         return true;
     }
@@ -54,14 +60,14 @@ public class Partida {
      */
     public boolean puedeRetroceder(Color color) {
         if (estado != EstadoJuego.EN_PROGRESO) return false;
-        NodoMovimiento ultimo = historial.getCola();
+        Movimiento ultimo = historial.getUltimo();
         return ultimo != null && ultimo.getColor() == color && getRetrocesosRestantes(color) > 0;
     }
 
     public boolean retrocederMovimiento(Color color) {
         if (!puedeRetroceder(color)) return false;
 
-        NodoMovimiento ultimo = historial.eliminarUltimo();
+        Movimiento ultimo = historial.deshacerUltimo();
         tablero.deshacerMovimiento(ultimo);
         turnoActual = ultimo.getColor();
 

@@ -6,7 +6,7 @@ import javax.swing.*;
 import javax.swing.border.LineBorder;
 import shared.utils.ImageUtil;
 import dominio.modelos.piezas.Pieza;
-import dominio.modelos.NodoMovimiento;
+import dominio.modelos.Movimiento;
 import dominio.modelos.Posicion;
 import dominio.modelos.Tablero;
 import dominio.modelos.Usuario;
@@ -550,15 +550,13 @@ public class VistaJuego extends JFrame {
         if (modeloTablaMovimientos == null) return;
         modeloTablaMovimientos.setRowCount(0);
 
-        // Una fila por nodo: cada NodoMovimiento es un solo movimiento (de blancas o de negras)
-        NodoMovimiento actual = gestionarJuego.getPartidaActual().getHistorial().getCabeza();
+        // Una fila por nodo: el iterador del TDA recorre de la cabeza a la cola sin exponer los nodos
         int numMovimiento = 1;
-        while (actual != null) {
-            String jugador = actual.getColor() == dominio.enums.Color.BLANCO ? "Blancas" : "Negras";
-            String pieza = traducirTipoPieza(actual.getPiezaMovida().getTipo());
-            modeloTablaMovimientos.addRow(new Object[]{numMovimiento, jugador, pieza, actual.toNotacion()});
+        for (Movimiento movimiento : gestionarJuego.getPartidaActual().getHistorial()) {
+            String jugador = movimiento.getColor() == dominio.enums.Color.BLANCO ? "Blancas" : "Negras";
+            String pieza = traducirTipoPieza(movimiento.getPiezaMovida().getTipo());
+            modeloTablaMovimientos.addRow(new Object[]{numMovimiento, jugador, pieza, movimiento.toNotacionCompleta()});
             numMovimiento++;
-            actual = actual.getSiguiente();
         }
 
         int ultimaFila = modeloTablaMovimientos.getRowCount() - 1;

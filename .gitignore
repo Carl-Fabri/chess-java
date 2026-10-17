@@ -9,3 +9,4 @@
 # Archivos de compilación
 *.class
 out/
+out-test/
